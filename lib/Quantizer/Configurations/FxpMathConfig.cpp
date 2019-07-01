@@ -65,6 +65,21 @@ struct FxpMathTargetConfigImpl : public FxpMathTargetConfig {
                               std::numeric_limits<int32_t>::min(),
                               std::numeric_limits<int32_t>::max()),
         CandidateQuantizedType::Scheme::UniformExplicitFixedPointScale);
+    quint8 = addCandidateType(
+        AnyQuantizedType::get(0, i8Type, nullptr,
+                              std::numeric_limits<uint8_t>::min(),
+                              std::numeric_limits<uint8_t>::max()),
+        CandidateQuantizedType::Scheme::UniformPerLayer);
+    quint16 = addCandidateType(
+        AnyQuantizedType::get(0, i16Type, nullptr,
+                              std::numeric_limits<uint16_t>::min(),
+                              std::numeric_limits<uint16_t>::max()),
+        CandidateQuantizedType::Scheme::UniformPerLayer);
+    quint32ExplicitFixedPoint = addCandidateType(
+        AnyQuantizedType::get(0, i32Type, nullptr,
+                              std::numeric_limits<uint32_t>::min(),
+                              std::numeric_limits<uint32_t>::max()),
+        CandidateQuantizedType::Scheme::UniformExplicitFixedPointScale);
 
     // Op handlers.
     addOpHandler<ConstantOp>(
@@ -83,6 +98,30 @@ struct FxpMathTargetConfigImpl : public FxpMathTargetConfig {
         std::bind(&FxpMathTargetConfigImpl::handleMatMul, this, _1, _2));
     addOpHandler<RealMatMulBiasOp>(
         std::bind(&FxpMathTargetConfigImpl::handleMatMulBias, this, _1, _2));
+    //addOpHandler<RealMatMulBiasReluOp>(
+    //    std::bind(&FxpMathTargetConfigImpl::handleMatMulBiasRelu, this, _1, _2));
+    //addOpHandler<RealMatMulBiasSumReluOp>(
+    //    std::bind(&FxpMathTargetConfigImpl::handleMatMulBiasSumRelu, this, _1, _2));
+    addOpHandler<RealConv2DOp>(
+        std::bind(&FxpMathTargetConfigImpl::handleConv2D, this, _1, _2));
+    addOpHandler<RealConv2DRequantizeOp>(
+        std::bind(&FxpMathTargetConfigImpl::handleConv2DRequantize, this, _1, _2));
+    addOpHandler<RealConv2DReluOp>(
+        std::bind(&FxpMathTargetConfigImpl::handleConv2D, this, _1, _2));
+    addOpHandler<RealConv2DReluRequantizeOp>(
+        std::bind(&FxpMathTargetConfigImpl::handleConv2DRequantize, this, _1, _2));
+    addOpHandler<RealConv2DBiasOp>(
+        std::bind(&FxpMathTargetConfigImpl::handleConv2DBias, this, _1, _2));
+    addOpHandler<RealConv2DBiasRequantizeOp>(
+        std::bind(&FxpMathTargetConfigImpl::handleConv2DBiasRequantize, this, _1, _2));
+    addOpHandler<RealConv2DBiasReluOp>(
+        std::bind(&FxpMathTargetConfigImpl::handleConv2DBiasRelu, this, _1, _2));
+    addOpHandler<RealConv2DBiasReluRequantizeOp>(
+        std::bind(&FxpMathTargetConfigImpl::handleConv2DBiasReluRequantize, this, _1, _2));
+    addOpHandler<RealConv2DBiasSumReluOp>(
+        std::bind(&FxpMathTargetConfigImpl::handleConv2DBiasSumRelu, this, _1, _2));
+    addOpHandler<RealConv2DBiasSumReluRequantizeOp>(
+        std::bind(&FxpMathTargetConfigImpl::handleConv2DBiasSumReluRequantize, this, _1, _2));
 
     // Require stats ops.
     addRequireStatsOp<RealAddEwOp>();
@@ -260,6 +299,209 @@ struct FxpMathTargetConfigImpl : public FxpMathTargetConfig {
     addRealMathOptionalConstraints(op, resultNode, cag);
   }
 
+  void handleConv2D(Operation *op, CAGSlice &cag) const {
+    if (!isHandledType(op->getResult(0)->getType()))
+      return;
+
+    auto lhs = cag.getOperandAnchor(op, 0);
+    auto rhs = cag.getOperandAnchor(op, 1);
+    auto resultNode = cag.getResultAnchor(op, 0);
+    // Conv2D supports 8 bit math.
+    llvm::SmallBitVector disableMask =
+        getCandidateTypeDisabledExceptMask({quint8});
+    lhs->getUniformMetadata().disabledCandidateTypes = disableMask;
+    rhs->getUniformMetadata().disabledCandidateTypes = disableMask;
+    resultNode->getUniformMetadata().disabledCandidateTypes =
+        getCandidateTypeDisabledExceptMask({q32ExplicitFixedPoint});
+    addRealMathOptionalConstraints(op, resultNode, cag);
+  }
+
+  void handleConv2DRequantize(Operation *op, CAGSlice &cag) const {
+    if (!isHandledType(op->getResult(0)->getType()))
+      return;
+
+    auto lhs = cag.getOperandAnchor(op, 0);
+    auto rhs = cag.getOperandAnchor(op, 1);
+    auto resultNode = cag.getResultAnchor(op, 0);
+    // Conv2D supports 8 bit math.
+    llvm::SmallBitVector disableMask =
+        getCandidateTypeDisabledExceptMask({quint8});
+    lhs->getUniformMetadata().disabledCandidateTypes = disableMask;
+    rhs->getUniformMetadata().disabledCandidateTypes = disableMask;
+    resultNode->getUniformMetadata().disabledCandidateTypes =
+        getCandidateTypeDisabledExceptMask({q8});
+    addRealMathOptionalConstraints(op, resultNode, cag);
+  }
+
+  void handleConv2DRelu(Operation *op, CAGSlice &cag) const {
+    if (!isHandledType(op->getResult(0)->getType()))
+      return;
+
+    auto lhs = cag.getOperandAnchor(op, 0);
+    auto rhs = cag.getOperandAnchor(op, 1);
+    auto resultNode = cag.getResultAnchor(op, 0);
+    // Conv2D supports 8 bit math.
+    llvm::SmallBitVector disableMask =
+        getCandidateTypeDisabledExceptMask({quint8});
+    lhs->getUniformMetadata().disabledCandidateTypes = disableMask;
+    rhs->getUniformMetadata().disabledCandidateTypes = disableMask;
+    resultNode->getUniformMetadata().disabledCandidateTypes =
+        getCandidateTypeDisabledExceptMask({q32ExplicitFixedPoint});
+    addRealMathOptionalConstraints(op, resultNode, cag);
+  }
+
+  void handleConv2DReluRequantize(Operation *op, CAGSlice &cag) const {
+    if (!isHandledType(op->getResult(0)->getType()))
+      return;
+
+    auto lhs = cag.getOperandAnchor(op, 0);
+    auto rhs = cag.getOperandAnchor(op, 1);
+    auto resultNode = cag.getResultAnchor(op, 0);
+    // Conv2D supports 8 bit math.
+    llvm::SmallBitVector disableMask =
+        getCandidateTypeDisabledExceptMask({quint8});
+    lhs->getUniformMetadata().disabledCandidateTypes = disableMask;
+    rhs->getUniformMetadata().disabledCandidateTypes = disableMask;
+    resultNode->getUniformMetadata().disabledCandidateTypes = disableMask;
+    addRealMathOptionalConstraints(op, resultNode, cag);
+  }
+
+  void handleConv2DBias(Operation *op, CAGSlice &cag) const {
+    if (!isHandledType(op->getResult(0)->getType()))
+      return;
+
+    auto lhs = cag.getOperandAnchor(op, 0);
+    auto rhs = cag.getOperandAnchor(op, 1);
+    auto bias = cag.getOperandAnchor(op, 2);
+    auto resultNode = cag.getResultAnchor(op, 0);
+    UniformConstraintsBuilder(cag).propagateExplicitScale(resultNode, bias);
+
+    // Conv2D supports 8 bit math.
+    llvm::SmallBitVector disableMask =
+        getCandidateTypeDisabledExceptMask({quint8});
+    lhs->getUniformMetadata().disabledCandidateTypes = disableMask;
+    rhs->getUniformMetadata().disabledCandidateTypes = disableMask;
+    bias->getUniformMetadata().disabledCandidateTypes =
+        getCandidateTypeDisabledExceptMask({q32ExplicitFixedPoint});
+    resultNode->getUniformMetadata().disabledCandidateTypes =
+        getCandidateTypeDisabledExceptMask({q32ExplicitFixedPoint});
+    addRealMathOptionalConstraints(op, resultNode, cag);
+  }
+
+  void handleConv2DBiasRequantize(Operation *op, CAGSlice &cag) const {
+    if (!isHandledType(op->getResult(0)->getType()))
+      return;
+
+    auto lhs = cag.getOperandAnchor(op, 0);
+    auto rhs = cag.getOperandAnchor(op, 1);
+    auto bias = cag.getOperandAnchor(op, 2);
+    auto resultNode = cag.getResultAnchor(op, 0);
+    UniformConstraintsBuilder(cag).propagateExplicitScale(resultNode, bias);
+
+    // Conv2D supports 8 bit math.
+    llvm::SmallBitVector disableMask =
+        getCandidateTypeDisabledExceptMask({quint8});
+    lhs->getUniformMetadata().disabledCandidateTypes = disableMask;
+    rhs->getUniformMetadata().disabledCandidateTypes = disableMask;
+    bias->getUniformMetadata().disabledCandidateTypes =
+        getCandidateTypeDisabledExceptMask({q32ExplicitFixedPoint});
+    resultNode->getUniformMetadata().disabledCandidateTypes =
+        getCandidateTypeDisabledExceptMask({q8});
+    addRealMathOptionalConstraints(op, resultNode, cag);
+  }
+
+  void handleConv2DBiasRelu(Operation *op, CAGSlice &cag) const {
+    if (!isHandledType(op->getResult(0)->getType()))
+      return;
+
+    auto lhs = cag.getOperandAnchor(op, 0);
+    auto rhs = cag.getOperandAnchor(op, 1);
+    auto bias = cag.getOperandAnchor(op, 2);
+    auto resultNode = cag.getResultAnchor(op, 0);
+    UniformConstraintsBuilder(cag).propagateExplicitScale(resultNode, bias);
+
+    // Conv2D supports 8 bit math.
+    llvm::SmallBitVector disableMask =
+        getCandidateTypeDisabledExceptMask({quint8});
+    lhs->getUniformMetadata().disabledCandidateTypes = disableMask;
+    rhs->getUniformMetadata().disabledCandidateTypes = disableMask;
+    bias->getUniformMetadata().disabledCandidateTypes =
+        getCandidateTypeDisabledExceptMask({q32ExplicitFixedPoint});
+    resultNode->getUniformMetadata().disabledCandidateTypes =
+        getCandidateTypeDisabledExceptMask({q32ExplicitFixedPoint});
+    addRealMathOptionalConstraints(op, resultNode, cag);
+  }
+
+  void handleConv2DBiasReluRequantize(Operation *op, CAGSlice &cag) const {
+    if (!isHandledType(op->getResult(0)->getType()))
+      return;
+
+    auto lhs = cag.getOperandAnchor(op, 0);
+    auto rhs = cag.getOperandAnchor(op, 1);
+    auto bias = cag.getOperandAnchor(op, 2);
+    auto resultNode = cag.getResultAnchor(op, 0);
+    UniformConstraintsBuilder(cag).propagateExplicitScale(resultNode, bias);
+
+    // Conv2D supports 8 bit math.
+    llvm::SmallBitVector disableMask =
+        getCandidateTypeDisabledExceptMask({quint8});
+    lhs->getUniformMetadata().disabledCandidateTypes = disableMask;
+    rhs->getUniformMetadata().disabledCandidateTypes = disableMask;
+    bias->getUniformMetadata().disabledCandidateTypes =
+        getCandidateTypeDisabledExceptMask({q32ExplicitFixedPoint});
+    resultNode->getUniformMetadata().disabledCandidateTypes = disableMask;
+    addRealMathOptionalConstraints(op, resultNode, cag);
+  }
+
+  void handleConv2DBiasSumRelu(Operation *op, CAGSlice &cag) const {
+    if (!isHandledType(op->getResult(0)->getType()))
+      return;
+
+    auto lhs = cag.getOperandAnchor(op, 0);
+    auto rhs = cag.getOperandAnchor(op, 1);
+    auto bias = cag.getOperandAnchor(op, 2);
+    auto summand = cag.getOperandAnchor(op, 3);
+
+    auto resultNode = cag.getResultAnchor(op, 0);
+    UniformConstraintsBuilder(cag).propagateExplicitScale(resultNode, bias);
+
+    // Conv2D supports 8 bit math.
+    llvm::SmallBitVector disableMask =
+        getCandidateTypeDisabledExceptMask({quint8});
+    lhs->getUniformMetadata().disabledCandidateTypes = disableMask;
+    rhs->getUniformMetadata().disabledCandidateTypes = disableMask;
+    summand->getUniformMetadata().disabledCandidateTypes = disableMask;
+    bias->getUniformMetadata().disabledCandidateTypes =
+        getCandidateTypeDisabledExceptMask({q32ExplicitFixedPoint});
+    resultNode->getUniformMetadata().disabledCandidateTypes =
+        getCandidateTypeDisabledExceptMask({q32ExplicitFixedPoint});
+    addRealMathOptionalConstraints(op, resultNode, cag);
+  }
+
+  void handleConv2DBiasSumReluRequantize(Operation *op, CAGSlice &cag) const {
+    if (!isHandledType(op->getResult(0)->getType()))
+      return;
+
+    auto lhs = cag.getOperandAnchor(op, 0);
+    auto rhs = cag.getOperandAnchor(op, 1);
+    auto bias = cag.getOperandAnchor(op, 2);
+    auto summand = cag.getOperandAnchor(op, 3);
+
+    auto resultNode = cag.getResultAnchor(op, 0);
+    UniformConstraintsBuilder(cag).propagateExplicitScale(resultNode, bias);
+
+    // Conv2D supports 8 bit math.
+    llvm::SmallBitVector disableMask =
+        getCandidateTypeDisabledExceptMask({quint8});
+    lhs->getUniformMetadata().disabledCandidateTypes = disableMask;
+    rhs->getUniformMetadata().disabledCandidateTypes = disableMask;
+    bias->getUniformMetadata().disabledCandidateTypes =
+        getCandidateTypeDisabledExceptMask({q32ExplicitFixedPoint});
+    summand->getUniformMetadata().disabledCandidateTypes = disableMask;
+    resultNode->getUniformMetadata().disabledCandidateTypes = disableMask;
+    addRealMathOptionalConstraints(op, resultNode, cag);
+  }
+
   void addRealMathOptionalConstraints(Operation *op, CAGAnchorNode *anchor,
                                       CAGSlice &cag) const {
     // TODO: It would be nice if these all extended some base trait instead
@@ -278,6 +520,9 @@ struct FxpMathTargetConfigImpl : public FxpMathTargetConfig {
   unsigned q8;
   unsigned q16;
   unsigned q32ExplicitFixedPoint;
+  unsigned quint8;
+  unsigned quint16;
+  unsigned quint32ExplicitFixedPoint;
 };
 
 } // anonymous namespace
