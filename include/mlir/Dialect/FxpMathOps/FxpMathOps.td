@@ -317,6 +317,33 @@ def fxpmath_RealMatMulBiasAddReluOp :
 // Fused Conv2D ops
 //===----------------------------------------------------------------------===//
 
+def fxpmath_RealBiasOp :
+    fxpmath_RealBinaryOp<"real_bias", [NoSideEffect]> {
+  let summary = "Bias";
+  let description = [{
+    Broadcast Add
+  }];
+}
+
+def fxpmath_RealAddOp :
+    fxpmath_RealBinaryOp<"real_add", [NoSideEffect]> {
+  let summary = "Add";
+  let description = [{
+    Add
+  }];
+}
+
+def fxpmath_RealReluOp : fxpmath_Op<"real_relu", [NoSideEffect]> {
+  let summary =
+      "Clamps a signed argument to (0,max) range.";
+  let description = [{
+    Element-wise equivalent to:
+      r = std::min(clamp_max, std::max(e, 0))
+  }];
+  let arguments = (ins FloatLike:$operand);
+  let results = (outs FloatLike);
+}
+
 def fxpmath_RealConv2DOp :
     fxpmath_RealBinaryOp<"real_conv2d", [NoSideEffect]> {
   let summary = "Conv2D";

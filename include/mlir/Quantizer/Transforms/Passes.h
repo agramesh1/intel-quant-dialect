@@ -41,6 +41,9 @@ createInferQuantizedTypesPass(SolverContext &solverContext,
 /// no effect on final runtime.
 FunctionPassBase *createRemoveInstrumentationPass();
 
+/// Creates a pass which generates fused Conv2D ops for Intel CPUs.
+FunctionPassBase *createConv2dFusionPass();
+
 /// Adds default (dummy) statistics to ops that can benefit from runtime stats.
 /// Meant for testing.
 FunctionPassBase *createAddDefaultStatsPass();

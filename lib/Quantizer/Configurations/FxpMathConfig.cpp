@@ -102,6 +102,12 @@ struct FxpMathTargetConfigImpl : public FxpMathTargetConfig {
     //    std::bind(&FxpMathTargetConfigImpl::handleMatMulBiasRelu, this, _1, _2));
     //addOpHandler<RealMatMulBiasSumReluOp>(
     //    std::bind(&FxpMathTargetConfigImpl::handleMatMulBiasSumRelu, this, _1, _2));
+    addOpHandler<RealReluOp>(
+        std::bind(&FxpMathTargetConfigImpl::handleRelu, this, _1, _2));
+    addOpHandler<RealBiasOp>(
+        std::bind(&FxpMathTargetConfigImpl::handleBias, this, _1, _2));
+    addOpHandler<RealAddOp>(
+        std::bind(&FxpMathTargetConfigImpl::handleRealAdd, this, _1, _2));
     addOpHandler<RealConv2DOp>(
         std::bind(&FxpMathTargetConfigImpl::handleConv2D, this, _1, _2));
     addOpHandler<RealConv2DRequantizeOp>(
@@ -296,6 +302,55 @@ struct FxpMathTargetConfigImpl : public FxpMathTargetConfig {
     lhs->getUniformMetadata().disabledCandidateTypes = disableMask;
     rhs->getUniformMetadata().disabledCandidateTypes = disableMask;
     resultNode->getUniformMetadata().disabledCandidateTypes = disableMask;
+    addRealMathOptionalConstraints(op, resultNode, cag);
+  }
+
+  void handleRelu(Operation *op, CAGSlice &cag) const {
+    if (!isHandledType(op->getResult(0)->getType()))
+      return;
+
+    auto lhs = cag.getOperandAnchor(op, 0);
+    auto resultNode = cag.getResultAnchor(op, 0);
+    // Relu supports 8 bit math.
+    llvm::SmallBitVector disableMask =
+        getCandidateTypeDisabledExceptMask({quint8});
+    lhs->getUniformMetadata().disabledCandidateTypes = disableMask;
+    resultNode->getUniformMetadata().disabledCandidateTypes =
+        getCandidateTypeDisabledExceptMask({q32ExplicitFixedPoint});
+    addRealMathOptionalConstraints(op, resultNode, cag);
+  }
+
+  void handleBias(Operation *op, CAGSlice &cag) const {
+    if (!isHandledType(op->getResult(0)->getType()))
+      return;
+
+    auto lhs = cag.getOperandAnchor(op, 0);
+    auto rhs = cag.getOperandAnchor(op, 1);
+    auto resultNode = cag.getResultAnchor(op, 0);
+    // Bias supports 8 bit math.
+    llvm::SmallBitVector disableMask =
+        getCandidateTypeDisabledExceptMask({quint8});
+    lhs->getUniformMetadata().disabledCandidateTypes = disableMask;
+    rhs->getUniformMetadata().disabledCandidateTypes = disableMask;
+    resultNode->getUniformMetadata().disabledCandidateTypes =
+        getCandidateTypeDisabledExceptMask({q32ExplicitFixedPoint});
+    addRealMathOptionalConstraints(op, resultNode, cag);
+  }
+
+  void handleRealAdd(Operation *op, CAGSlice &cag) const {
+    if (!isHandledType(op->getResult(0)->getType()))
+      return;
+
+    auto lhs = cag.getOperandAnchor(op, 0);
+    auto rhs = cag.getOperandAnchor(op, 1);
+    auto resultNode = cag.getResultAnchor(op, 0);
+    // Add supports 8 bit math.
+    llvm::SmallBitVector disableMask =
+        getCandidateTypeDisabledExceptMask({quint8});
+    lhs->getUniformMetadata().disabledCandidateTypes = disableMask;
+    rhs->getUniformMetadata().disabledCandidateTypes = disableMask;
+    resultNode->getUniformMetadata().disabledCandidateTypes =
+        getCandidateTypeDisabledExceptMask({q32ExplicitFixedPoint});
     addRealMathOptionalConstraints(op, resultNode, cag);
   }
 
