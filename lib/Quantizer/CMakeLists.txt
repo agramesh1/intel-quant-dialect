@@ -30,6 +30,7 @@ add_llvm_library(MLIRQuantizerTransforms
   Transforms/AddDefaultStatsTestPass.cpp
   Transforms/InferQuantizedTypesPass.cpp
   Transforms/RemoveInstrumentationPass.cpp
+  Transforms/Conv2DFusionPass.cpp
 
   ADDITIONAL_HEADER_DIRS
   )
