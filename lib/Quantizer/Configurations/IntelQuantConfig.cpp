@@ -80,18 +80,6 @@ struct IntelQuantTargetConfigImpl : public IntelQuantTargetConfig {
         std::bind(&IntelQuantTargetConfigImpl::handleStats, this, _1, _2));
 
     // IntelQuantOps.
-    addOpHandler<RealAddEwOp>(
-        std::bind(&IntelQuantTargetConfigImpl::handleAdd, this, _1, _2));
-    addOpHandler<RealMulEwOp>(
-        std::bind(&IntelQuantTargetConfigImpl::handleMul, this, _1, _2));
-    addOpHandler<RealMatMulOp>(
-        std::bind(&IntelQuantTargetConfigImpl::handleMatMul, this, _1, _2));
-    addOpHandler<RealMatMulBiasOp>(
-        std::bind(&IntelQuantTargetConfigImpl::handleMatMulBias, this, _1, _2));
-    //addOpHandler<RealMatMulBiasReluOp>(
-    //    std::bind(&IntelQuantTargetConfigImpl::handleMatMulBiasRelu, this, _1, _2));
-    //addOpHandler<RealMatMulBiasSumReluOp>(
-    //    std::bind(&IntelQuantTargetConfigImpl::handleMatMulBiasSumRelu, this, _1, _2));
     addOpHandler<RealReluOp>(
         std::bind(&IntelQuantTargetConfigImpl::handleRelu, this, _1, _2));
     addOpHandler<RealBiasOp>(
@@ -118,14 +106,6 @@ struct IntelQuantTargetConfigImpl : public IntelQuantTargetConfig {
         std::bind(&IntelQuantTargetConfigImpl::handleConv2DBiasSumRelu, this, _1, _2));
     addOpHandler<RealConv2DBiasSumReluRequantizeOp>(
         std::bind(&IntelQuantTargetConfigImpl::handleConv2DBiasSumReluRequantize, this, _1, _2));
-
-    // Require stats ops.
-    addRequireStatsOp<RealAddEwOp>();
-    addRequireStatsOp<RealSubEwOp>();
-    addRequireStatsOp<RealDivEwOp>();
-    addRequireStatsOp<RealMulEwOp>();
-    addRequireStatsOp<RealMatMulOp>();
-    addRequireStatsOp<RealMatMulBiasOp>();
   }
 
   bool isHandledType(Type t) const final {
@@ -214,85 +194,6 @@ struct IntelQuantTargetConfigImpl : public IntelQuantTargetConfig {
         layerStatsAttr.getValue({1}).cast<FloatAttr>().getValueAsDouble();
     UniformConstraintsBuilder(cag).applyStats(resultNode,
                                               std::move(layerStats));
-  }
-
-  void handleAdd(Operation *op, CAGSlice &cag) const {
-    if (!isHandledType(op->getResult(0)->getType()))
-      return;
-
-    auto lhs = cag.getOperandAnchor(op, 0);
-    auto rhs = cag.getOperandAnchor(op, 1);
-    auto resultNode = cag.getResultAnchor(op, 0);
-    // Add supports 8/16 bit math.
-    llvm::SmallBitVector disableMask =
-        getCandidateTypeDisabledExceptMask({q8, q16});
-    lhs->getUniformMetadata().disabledCandidateTypes = disableMask;
-    rhs->getUniformMetadata().disabledCandidateTypes = disableMask;
-    resultNode->getUniformMetadata().disabledCandidateTypes = disableMask;
-    // NOTE: We couple the add such that the scale/zeroPoint match between
-    // both args and the result. This is overly constrained in that it is
-    // possible to write efficient add kernels with a bit more freedom (i.e.
-    // zeroPoints can vary, scales can differ by a power of two, etc).
-    // However, fully coupled yields the simples solutions on the fast path.
-    // Further efficiency can be had by constraining the zeroPoint to 0, but
-    // there isn't a constraint for this yet (and there are tradeoffs).
-    UniformConstraintsBuilder(cag).coupleAnchors(lhs, resultNode);
-    UniformConstraintsBuilder(cag).coupleAnchors(rhs, resultNode);
-    addRealMathOptionalConstraints(op, resultNode, cag);
-  }
-
-  void handleMul(Operation *op, CAGSlice &cag) const {
-    if (!isHandledType(op->getResult(0)->getType()))
-      return;
-
-    auto lhs = cag.getOperandAnchor(op, 0);
-    auto rhs = cag.getOperandAnchor(op, 1);
-    auto resultNode = cag.getResultAnchor(op, 0);
-    // Mul supports 8/16 bit math.
-    llvm::SmallBitVector disableMask =
-        getCandidateTypeDisabledExceptMask({q8, q16});
-    lhs->getUniformMetadata().disabledCandidateTypes = disableMask;
-    rhs->getUniformMetadata().disabledCandidateTypes = disableMask;
-    resultNode->getUniformMetadata().disabledCandidateTypes = disableMask;
-    addRealMathOptionalConstraints(op, resultNode, cag);
-  }
-
-  void handleMatMul(Operation *op, CAGSlice &cag) const {
-    if (!isHandledType(op->getResult(0)->getType()))
-      return;
-
-    auto lhs = cag.getOperandAnchor(op, 0);
-    auto rhs = cag.getOperandAnchor(op, 1);
-    auto resultNode = cag.getResultAnchor(op, 0);
-    // Mul supports 8/16 bit math.
-    llvm::SmallBitVector disableMask =
-        getCandidateTypeDisabledExceptMask({q8, q16});
-    lhs->getUniformMetadata().disabledCandidateTypes = disableMask;
-    rhs->getUniformMetadata().disabledCandidateTypes = disableMask;
-    resultNode->getUniformMetadata().disabledCandidateTypes = disableMask;
-    addRealMathOptionalConstraints(op, resultNode, cag);
-  }
-
-  void handleMatMulBias(Operation *op, CAGSlice &cag) const {
-    if (!isHandledType(op->getResult(0)->getType()))
-      return;
-
-    auto lhs = cag.getOperandAnchor(op, 0);
-    auto rhs = cag.getOperandAnchor(op, 1);
-    auto bias = cag.getOperandAnchor(op, 2);
-    bias->getUniformMetadata().disabledCandidateTypes =
-        getCandidateTypeDisabledExceptMask({q32ExplicitFixedPoint});
-
-    auto resultNode = cag.getResultAnchor(op, 0);
-    UniformConstraintsBuilder(cag).propagateExplicitScale(resultNode, bias);
-
-    // Mul supports 8/16 bit math.
-    llvm::SmallBitVector disableMask =
-        getCandidateTypeDisabledExceptMask({q8, q16});
-    lhs->getUniformMetadata().disabledCandidateTypes = disableMask;
-    rhs->getUniformMetadata().disabledCandidateTypes = disableMask;
-    resultNode->getUniformMetadata().disabledCandidateTypes = disableMask;
-    addRealMathOptionalConstraints(op, resultNode, cag);
   }
 
   void handleRelu(Operation *op, CAGSlice &cag) const {
