@@ -20,7 +20,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "mlir/Dialect/QuantOps/QuantOps.h"
-#include "mlir/Dialect/FxpMathOps/FxpMathOps.h"
+#include "mlir/Dialect/IntelQuantOps/IntelQuantOps.h"
 #include "mlir/IR/MLIRContext.h"
 #include "mlir/IR/PatternMatch.h"
 #include "mlir/Pass/Pass.h"
@@ -34,7 +34,7 @@
 using namespace mlir;
 using namespace mlir::quantizer;
 using namespace mlir::quant;
-using namespace mlir::fxpmath;
+using namespace mlir::intelquant;
 
 namespace {
 
@@ -61,7 +61,7 @@ public:
         std::vector<Value *> operands;
 	operands.push_back(op->getOperand(0));
 	operands.push_back(op->getOperand(1));
-        rewriter.replaceOpWithNewOp<fxpmath::RealConv2DRequantizeOp>(qcast, qcast->getResult(0)->getType(), operands, op->getAttrs());
+        rewriter.replaceOpWithNewOp<intelquant::RealConv2DRequantizeOp>(qcast, qcast->getResult(0)->getType(), operands, op->getAttrs());
         return matchSuccess();
       }
     }
@@ -89,7 +89,7 @@ public:
         std::vector<Value *> operands;
 	operands.push_back(op->getOperand(0));
 	operands.push_back(op->getOperand(1));
-        rewriter.replaceOpWithNewOp<fxpmath::RealConv2DReluOp>(relu, relu->getResult(0)->getType(), operands, op->getAttrs());
+        rewriter.replaceOpWithNewOp<intelquant::RealConv2DReluOp>(relu, relu->getResult(0)->getType(), operands, op->getAttrs());
         return matchSuccess();
       }
     }
@@ -121,7 +121,7 @@ public:
             std::vector<Value *> operands;
 	    operands.push_back(op->getOperand(0));
 	    operands.push_back(op->getOperand(1));
-            rewriter.replaceOpWithNewOp<fxpmath::RealConv2DReluRequantizeOp>(qcast, qcast->getResult(0)->getType(), operands, op->getAttrs());
+            rewriter.replaceOpWithNewOp<intelquant::RealConv2DReluRequantizeOp>(qcast, qcast->getResult(0)->getType(), operands, op->getAttrs());
             return matchSuccess();
 	  }
 	}
@@ -154,7 +154,7 @@ public:
 	    operands.push_back(op->getOperand(0));
 	    operands.push_back(op->getOperand(1));
 	    operands.push_back(bias->getOperand(1));
-            rewriter.replaceOpWithNewOp<fxpmath::RealConv2DBiasReluOp>(relu, relu->getResult(0)->getType(), operands, op->getAttrs());
+            rewriter.replaceOpWithNewOp<intelquant::RealConv2DBiasReluOp>(relu, relu->getResult(0)->getType(), operands, op->getAttrs());
             return matchSuccess();
 	  }
 	}
@@ -189,7 +189,7 @@ public:
                 operands.push_back(op->getOperand(0));
 	        operands.push_back(op->getOperand(1));
 	        operands.push_back(bias->getOperand(1));
-                rewriter.replaceOpWithNewOp<fxpmath::RealConv2DBiasReluRequantizeOp>(qcast, qcast->getResult(0)->getType(), operands, op->getAttrs());
+                rewriter.replaceOpWithNewOp<intelquant::RealConv2DBiasReluRequantizeOp>(qcast, qcast->getResult(0)->getType(), operands, op->getAttrs());
                 return matchSuccess();
 	      }
 	    }
@@ -227,7 +227,7 @@ public:
   	        operands.push_back(op->getOperand(1));
 	        operands.push_back(bias->getOperand(1));
 	        operands.push_back(sum->getOperand(1));
-                rewriter.replaceOpWithNewOp<fxpmath::RealConv2DBiasSumReluOp>(sum, sum->getResult(0)->getType(), operands, op->getAttrs());
+                rewriter.replaceOpWithNewOp<intelquant::RealConv2DBiasSumReluOp>(relu, relu->getResult(0)->getType(), operands, op->getAttrs());
                 return matchSuccess();
 	      }
 	    }
@@ -267,7 +267,7 @@ public:
   	            operands.push_back(op->getOperand(1));
 	            operands.push_back(bias->getOperand(1));
 	            operands.push_back(sum->getOperand(1));
-                    rewriter.replaceOpWithNewOp<fxpmath::RealConv2DBiasSumReluRequantizeOp>(qcast, qcast->getResult(0)->getType(), operands, op->getAttrs());
+                    rewriter.replaceOpWithNewOp<intelquant::RealConv2DBiasSumReluRequantizeOp>(qcast, qcast->getResult(0)->getType(), operands, op->getAttrs());
                     return matchSuccess();
 		  }
 		}

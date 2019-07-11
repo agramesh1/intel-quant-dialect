@@ -37,6 +37,12 @@ ModulePassBase *
 createInferQuantizedTypesPass(SolverContext &solverContext,
                               const TargetConfiguration &config);
 
+/// Creates a pass that infers quantized types based on metadata discovered
+/// in the computation.
+ModulePassBase *
+createInferQuantizedTypesIntelPass(SolverContext &solverContext,
+                              const TargetConfiguration &config);
+
 /// Creates a pass which removes any instrumentation and hint ops which have
 /// no effect on final runtime.
 FunctionPassBase *createRemoveInstrumentationPass();
